@@ -224,15 +224,16 @@ class AuthController {
     forgetPassword(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { credential, verificationId, verificationMethod, password } = req.body;
-                if (!credential || !verificationId || !verificationMethod || !password)
+                const { credential, purpose, verificationId, password } = req.body;
+                if (!credential || !verificationId || !purpose || !password)
                     throw new customErrors_1.NotFoundError("Invalid credentials");
-                if (!["email", "phone"].includes(verificationMethod)) {
-                    throw new customErrors_1.NotFoundError("Invalid verfication method");
+                if (!["forget-password-email", "forget-password-phone"].includes(purpose)) {
+                    throw new customErrors_1.NotFoundError("Invalid purpose");
                 }
                 if (!mongoose_1.default.Types.ObjectId.isValid(verificationId))
                     throw new customErrors_1.BadRequestError("Invalid verificationId");
-                const result = yield this.authService.forgetPassword(req.body);
+                const verificationMethod = purpose == 'forget-password-email' ? 'email' : "phone";
+                const result = yield this.authService.forgetPassword({ credential, verificationId, password, verificationMethod });
                 res.status(statusCodes_1.STATUS_CODES.OK).json({
                     success: true,
                     message: "✅ You have successfully updated your password. Please log in with your new password.",

@@ -198,15 +198,17 @@ export class AuthController {
     // @route: POST /api/v1/auth/forget-password
     async forgetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { credential, verificationId, verificationMethod, password } = req.body;
+            const { credential, purpose,verificationId, password } = req.body;
 
-            if (!credential || !verificationId || !verificationMethod || !password) throw new NotFoundError("Invalid credentials");
-            if (!["email", "phone"].includes(verificationMethod)) {
-                throw new NotFoundError("Invalid verfication method");
+            if (!credential || !verificationId||!purpose  || !password) throw new NotFoundError("Invalid credentials");
+            if (!["forget-password-email", "forget-password-phone"].includes(purpose)) {
+                throw new NotFoundError("Invalid purpose");
             }
             if (!mongoose.Types.ObjectId.isValid(verificationId)) throw new BadRequestError("Invalid verificationId");
 
-            const result = await this.authService.forgetPassword(req.body);
+            const verificationMethod= purpose=='forget-password-email'?'email':"phone"
+
+            const result = await this.authService.forgetPassword({credential,verificationId,password,verificationMethod});
             res.status(STATUS_CODES.OK).json({
                 success: true,
                 message: "✅ You have successfully updated your password. Please log in with your new password.",
