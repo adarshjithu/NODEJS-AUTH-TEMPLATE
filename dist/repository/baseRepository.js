@@ -50,5 +50,10 @@ class BaseRepository {
             return yield this.model.findByIdAndDelete(id).exec();
         });
     }
+    aggregate(pipeline) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.model.aggregate(pipeline);
+        });
+    }
 }
 exports.BaseRepository = BaseRepository;

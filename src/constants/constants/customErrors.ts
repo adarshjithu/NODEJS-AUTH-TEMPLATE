@@ -8,7 +8,7 @@ export class BadRequestError extends Error {
     }
 }
 
-// errors 
+// errors
 
 // Unauthorized Error (401 )
 export class UnAuthorizedError extends Error {
@@ -127,10 +127,8 @@ export class EmptyRequestBodyError extends Error {
         super("Please provide the required information");
         this.status = 400; // Bad Request
         this.name = "Please provide the required information";
-       
     }
 }
-
 
 export class ResourceGoneError extends Error {
     status: number;
@@ -140,3 +138,15 @@ export class ResourceGoneError extends Error {
         this.name = "ResourceGoneError";
     }
 }
+
+export const BodyValidator = (schema: any, body: any) => {
+    const { error } = schema.validate(body, { abortEarly: false });
+
+    if (error && error.details) {
+        const messages = error.details.map(
+            (obj: any) => obj.message.replace(/\"/g, "") // remove quotes from each message
+        );
+        const errorMessage = messages.join(", "); // join all messages into one string
+        throw new BadRequestError(errorMessage);
+    }
+};

@@ -31,6 +31,7 @@ const statusCodes_1 = require("../../../constants/constants/statusCodes");
 const otpValidator_1 = require("../../../validations/otpValidator");
 const userValidator_1 = require("../../../validations/userValidator");
 const google_auth_library_1 = require("google-auth-library");
+const validateTarget_1 = require("../../../utils/otp/validateTarget");
 class AuthController {
     constructor(authService) {
         this.authService = authService;
@@ -40,18 +41,15 @@ class AuthController {
     register(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const _a = req.body, { verificationMethod, verificationId } = _a, userData = __rest(_a, ["verificationMethod", "verificationId"]);
+                const _a = req.body, { purpose, verificationId } = _a, userData = __rest(_a, ["purpose", "verificationId"]);
                 userValidator_1.userValidationSchema.parse(userData);
-                if (!verificationMethod) {
-                    throw new customErrors_1.BadRequestError("Verification method is required");
-                }
-                const allowedVerificationMethods = ["email", "phone", "google"];
-                if (!allowedVerificationMethods.includes(verificationMethod)) {
-                    throw new customErrors_1.BadRequestError(`Invalid verification method. Allowed values: ${allowedVerificationMethods.join(", ")}`);
+                if (!['register-email', 'register-phone'].includes(purpose)) {
+                    throw new customErrors_1.BadRequestError("Invalid purpose");
                 }
                 if (!verificationId || !mongoose_1.default.Types.ObjectId.isValid(verificationId)) {
                     throw new customErrors_1.BadRequestError("Invalid verification Id");
                 }
+                const verificationMethod = purpose == 'register-email' ? 'email' : 'phone';
                 const { accessToken, refreshToken, user } = yield this.authService.registerUser(Object.assign({ verificationMethod,
                     verificationId }, userData));
                 res.cookie("ecom-access-token", accessToken, {
@@ -86,6 +84,7 @@ class AuthController {
             try {
                 otpValidator_1.otpValidatorSchema.parse(req.body);
                 const { target, purpose, code } = req.body;
+                (0, validateTarget_1.validateTarget)(target);
                 const result = yield this.authService.sendOTP({
                     target,
                     purpose,

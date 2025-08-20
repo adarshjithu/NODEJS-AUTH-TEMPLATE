@@ -1,5 +1,6 @@
 // src/repositories/baseRepository.ts
 import { Model, Document, FilterQuery, UpdateQuery } from "mongoose";
+import { pipeline } from "nodemailer/lib/xoauth2";
 
 export class BaseRepository<T extends Document> {
   private model: Model<T>;
@@ -34,5 +35,9 @@ export class BaseRepository<T extends Document> {
 
   async delete(id: string): Promise<T | null> {
     return await this.model.findByIdAndDelete(id).exec();
+  }
+
+  async aggregate(pipeline:any):Promise<any>{
+    return await this.model.aggregate(pipeline)
   }
 }

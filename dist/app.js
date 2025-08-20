@@ -10,11 +10,11 @@ const morgan_1 = __importDefault(require("morgan"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
-const errorHandler_js_1 = __importDefault(require("./middlewares/errorHandler.js"));
 const corsConfig_js_1 = __importDefault(require("./config/corsConfig.js"));
 // Routes
 const userRoutes_js_1 = __importDefault(require("./routes/userRoutes.js"));
 const adminRoutes_js_1 = __importDefault(require("./routes/adminRoutes.js"));
+const errorHandler_1 = __importDefault(require("./middlewares/errorHandler"));
 // Load environment variables
 dotenv_1.default.config();
 // Initialize express app
@@ -40,7 +40,7 @@ app.use((req, res) => {
     res.status(404).json({ success: false, message: "Route not found" });
 });
 // Centralized error handler
-app.use(errorHandler_js_1.default);
+app.use(errorHandler_1.default);
 // ========== Server ==========
 const Server = http_1.default.createServer(app);
 exports.default = Server;

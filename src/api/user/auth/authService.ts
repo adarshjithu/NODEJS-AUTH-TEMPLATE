@@ -149,6 +149,8 @@ export class AuthService {
         // Build query
         const otpQuery: any = { purpose, target };
         const { email, phone } = this.getPurposeFlags(purpose);
+        if(phone&&!code) throw new NotFoundError("Country code is required")
+
         if (phone) {
             otpQuery.code = code; // extra check for phone
         }
@@ -192,59 +194,63 @@ export class AuthService {
 
     // User registration
     async registerUser({
+    email,
+    phone,
+    password,
+    name,
+    verificationMethod,
+    verificationId,
+}: IUser & { verificationMethod: string; verificationId: string }): Promise<IAuthResponse> {
+    let otpQuery: any = { _id: verificationId };
+    if (verificationMethod === "email") otpQuery.target = email;
+    if (verificationMethod === "phone") {
+        otpQuery.target = phone?.number;  
+        otpQuery.code = phone.code;
+    }
+
+    const otpData = await this.otpRepository.findOne(otpQuery);
+    if (!otpData) throw new NotFoundError("Authentication failed. OTP session expired");
+    if (!otpData.isUsed) throw new BadRequestError("OTP is not verified");
+
+   
+    if (email) {
+        const existingEmail = await this.authRepository.findOne({ email });
+        if (existingEmail) throw new ConflictError("Email already in use");
+    }
+
+
+    if (phone?.number) {
+        const existingPhone = await this.authRepository.findOne({ "phone.number": phone.number });
+        if (existingPhone) throw new ConflictError("Phone number already in use");
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    const newUser: any = {
+        name,
         email,
         phone,
-        password,
-        name,
-        verificationMethod,
-        verificationId,
-    }: IUser & { verificationMethod: string; verificationId: string }): Promise<IAuthResponse> {
-        let otpQuery: any = { _id: verificationId };
-        if (verificationMethod == "email") otpQuery.target = email;
-        if (verificationId == "phone") {
-            otpQuery.target == phone?.number;
-            otpQuery.code = phone.code;
-        }
-        const otpData = await this.otpRepository.findOne(otpQuery);
+        password: hashedPassword,
+    };
+    if (verificationMethod === "email") newUser.isEmailVerified = true;
+    if (verificationMethod === "phone") newUser.isPhoneVerified = true;
 
-        if (!otpData) throw new NotFoundError("Authentication failed. Otp session expired");
 
-        if (!otpData.isUsed) throw new BadRequestError("OTP is not verified");
-        // Check if email already exists
-        const existingEmail = await this.authRepository.findOne({ email });
+    // Create user
+    const userDoc = await this.authRepository.create(newUser);
 
-        if (existingEmail) throw new ConflictError("Email already in use");
+    // Generate tokens
+    const accessToken = generateAccessToken({ userId: userDoc._id, role: userDoc.role });
+    const refreshToken = generateRefreshToken({ userId: userDoc._id, role: userDoc.role });
 
-        // Check if phone already exists
-        const existingPhone = await this.authRepository.findOne({ phone });
-        if (existingPhone) throw new ConflictError("Phone number already in use");
+    // Remove password before returning
+    const user = userDoc.toObject();
+    delete user.password;
 
-        // Hash password
-        const hashedPassword = await hashPassword(password);
+    return { user, accessToken, refreshToken };
+}
 
-        const newUser: any = {
-            name,
-            email,
-            phone,
-            password: hashedPassword,
-        };
-        if (verificationMethod == "email") newUser.isEmailVerified = true;
-        if (verificationMethod == "phone") newUser.isPhoneVerified = true;
-        if (verificationMethod == "google") newUser.isGoogleVerified = true;
-
-        // Create user
-        const userDoc = await this.authRepository.create(newUser);
-
-        // Generate tokens
-        const accessToken = generateAccessToken({ userId: userDoc._id, role: userDoc.role });
-        const refreshToken = generateRefreshToken({ userId: userDoc._id, role: userDoc.role });
-
-        // Convert mongoose doc -> plain object and remove password
-        const user = userDoc.toObject();
-        delete user.password;
-
-        return { user, accessToken, refreshToken };
-    }
 
     // User login
     async userlogin({ credential, password }: { credential: string; password: string }): Promise<IAuthResponse> {

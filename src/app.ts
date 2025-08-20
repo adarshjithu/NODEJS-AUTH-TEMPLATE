@@ -5,12 +5,14 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
-import errorHandler from "./middlewares/errorHandler.js";
+
 import corsConfig from "./config/corsConfig.js";
 
 // Routes
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import errorHandler from "./middlewares/errorHandler";
+
 
 // Load environment variables
 dotenv.config();

@@ -1,20 +1,22 @@
 import { NextFunction, Request, Response } from "express";
 import { NotFoundError, UnAuthorizedError } from "../constants/constants/customErrors";
 import { verifyToken } from "../utils/token/tokenUtils";
-export const authenticate = (roles: string[] = ['user']) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const accessToken = req.cookies['ecom-access-token'];
-    if (!accessToken) throw new UnAuthorizedError("Unauthorized: No access token provided");
+export const authenticate = (roles: string[] = ["user"]) => {
 
-    const decoded: any = verifyToken(accessToken);
-    if (!decoded?.data) throw new UnAuthorizedError("Unauthorized: Invalid or expired access token");
+  
+    return (req: Request, res: Response, next: NextFunction) => {
+        const accessToken = req.cookies["ecom-access-token"];
+        if (!accessToken) throw new UnAuthorizedError("Unauthorized: No access token provided");
 
-    req.user = {_id:decoded?.data?.userId,role:decoded.data.role}
+        const decoded: any = verifyToken(accessToken);
+        if (!decoded?.data) throw new UnAuthorizedError("Unauthorized: Invalid or expired access token");
 
-    if (roles.length && !roles.includes(req.user.role)) {
-      throw new UnAuthorizedError("Forbidden: You don’t have access to this resource");
-    }
+        req.user = { _id: decoded?.data?.userId, role: decoded.data.role };
 
-    next();
-  };
+        if (roles.length && !roles.includes(req.user.role)) {
+            throw new UnAuthorizedError("Forbidden: You don’t have access to this resource");
+        }
+
+        next();
+    };
 };

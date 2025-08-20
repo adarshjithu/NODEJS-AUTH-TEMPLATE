@@ -131,6 +131,8 @@ class AuthService {
             // Build query
             const otpQuery = { purpose, target };
             const { email, phone } = this.getPurposeFlags(purpose);
+            if (phone && !code)
+                throw new customErrors_1.NotFoundError("Country code is required");
             if (phone) {
                 otpQuery.code = code; // extra check for phone
             }
@@ -168,25 +170,27 @@ class AuthService {
     registerUser(_a) {
         return __awaiter(this, arguments, void 0, function* ({ email, phone, password, name, verificationMethod, verificationId, }) {
             let otpQuery = { _id: verificationId };
-            if (verificationMethod == "email")
+            if (verificationMethod === "email")
                 otpQuery.target = email;
-            if (verificationId == "phone") {
-                otpQuery.target == (phone === null || phone === void 0 ? void 0 : phone.number);
+            if (verificationMethod === "phone") {
+                otpQuery.target = phone === null || phone === void 0 ? void 0 : phone.number;
                 otpQuery.code = phone.code;
             }
             const otpData = yield this.otpRepository.findOne(otpQuery);
             if (!otpData)
-                throw new customErrors_1.NotFoundError("Authentication failed. Otp session expired");
+                throw new customErrors_1.NotFoundError("Authentication failed. OTP session expired");
             if (!otpData.isUsed)
                 throw new customErrors_1.BadRequestError("OTP is not verified");
-            // Check if email already exists
-            const existingEmail = yield this.authRepository.findOne({ email });
-            if (existingEmail)
-                throw new customErrors_1.ConflictError("Email already in use");
-            // Check if phone already exists
-            const existingPhone = yield this.authRepository.findOne({ phone });
-            if (existingPhone)
-                throw new customErrors_1.ConflictError("Phone number already in use");
+            if (email) {
+                const existingEmail = yield this.authRepository.findOne({ email });
+                if (existingEmail)
+                    throw new customErrors_1.ConflictError("Email already in use");
+            }
+            if (phone === null || phone === void 0 ? void 0 : phone.number) {
+                const existingPhone = yield this.authRepository.findOne({ "phone.number": phone.number });
+                if (existingPhone)
+                    throw new customErrors_1.ConflictError("Phone number already in use");
+            }
             // Hash password
             const hashedPassword = yield (0, passwordUtils_1.hashPassword)(password);
             const newUser = {
@@ -195,18 +199,16 @@ class AuthService {
                 phone,
                 password: hashedPassword,
             };
-            if (verificationMethod == "email")
+            if (verificationMethod === "email")
                 newUser.isEmailVerified = true;
-            if (verificationMethod == "phone")
+            if (verificationMethod === "phone")
                 newUser.isPhoneVerified = true;
-            if (verificationMethod == "google")
-                newUser.isGoogleVerified = true;
             // Create user
             const userDoc = yield this.authRepository.create(newUser);
             // Generate tokens
             const accessToken = (0, tokenUtils_1.generateAccessToken)({ userId: userDoc._id, role: userDoc.role });
             const refreshToken = (0, tokenUtils_1.generateRefreshToken)({ userId: userDoc._id, role: userDoc.role });
-            // Convert mongoose doc -> plain object and remove password
+            // Remove password before returning
             const user = userDoc.toObject();
             delete user.password;
             return { user, accessToken, refreshToken };

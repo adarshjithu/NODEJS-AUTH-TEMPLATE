@@ -7,6 +7,7 @@ import { loginSchema, userValidationSchema } from "../../../validations/userVali
 import { AuthService } from "./authService";
 import { Request, Response, NextFunction } from "express";
 import { OAuth2Client } from "google-auth-library";
+import { validateTarget } from "../../../utils/otp/validateTarget";
 
 export class AuthController {
     constructor(private authService: AuthService) {}
@@ -15,24 +16,22 @@ export class AuthController {
     // @route: POST /api/v1/auth/register
     async register(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { verificationMethod, verificationId, ...userData } = req.body;
+            const { purpose, verificationId, ...userData } = req.body;
             userValidationSchema.parse(userData);
 
-            if (!verificationMethod) {
-                throw new BadRequestError("Verification method is required");
+            if (!['register-email','register-phone'].includes(purpose)) {
+                throw new BadRequestError("Invalid purpose");
             }
 
-            const allowedVerificationMethods = ["email", "phone", "google"];
-            if (!allowedVerificationMethods.includes(verificationMethod)) {
-                throw new BadRequestError(`Invalid verification method. Allowed values: ${allowedVerificationMethods.join(", ")}`);
-            }
+          
 
             if (!verificationId || !mongoose.Types.ObjectId.isValid(verificationId)) {
                 throw new BadRequestError("Invalid verification Id");
             }
 
+            const verificationMethod = purpose=='register-email'?'email':'phone'
             const { accessToken, refreshToken, user } = await this.authService.registerUser({
-                verificationMethod,
+               verificationMethod,
                 verificationId,
                 ...userData,
             });
@@ -67,7 +66,7 @@ export class AuthController {
         try {
             otpValidatorSchema.parse(req.body);
             const { target, purpose, code } = req.body;
-
+            validateTarget(target);
             const result = await this.authService.sendOTP({
                 target,
                 purpose,
@@ -254,7 +253,7 @@ export class AuthController {
             const { email, given_name, picture } = payload;
             const userObj = { name: given_name, email, profilePicture: picture };
 
-             const { user, accessToken, refreshToken } = await this.authService.createAccountWithGoogle(userObj as any);
+            const { user, accessToken, refreshToken } = await this.authService.createAccountWithGoogle(userObj as any);
 
             res.cookie("ecom-access-token", accessToken, {
                 httpOnly: true,
@@ -298,9 +297,8 @@ export class AuthController {
             }
 
             const { email } = payload;
-            
 
-             const { user, accessToken, refreshToken } = await this.authService.googleLogin(email as string);
+            const { user, accessToken, refreshToken } = await this.authService.googleLogin(email as string);
 
             res.cookie("ecom-access-token", accessToken, {
                 httpOnly: true,
